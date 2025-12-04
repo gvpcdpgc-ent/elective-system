@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Elective Subject Selection System
 
-## Getting Started
+A full-stack web application designed to manage the elective subject selection process for students. It features role-based access (Admin/Student), real-time seat availability, preference-based allocation, and analytics.
 
-First, run the development server:
+## 🚀 Features
 
+### 🎓 Student Portal
+*   **Dashboard**: View all available elective subjects with real-time seat counts.
+*   **Smart Filtering**: Automatically hides/disables subjects based on the student's branch (Open Elective constraints).
+*   **Preference System**: Rank subjects in order of preference (1st, 2nd, 3rd...).
+*   **Real-time Allocation**: Immediate seat allocation based on submitted preferences and availability.
+*   **Deadline Enforcement**: Selection is disabled automatically after the admin-configured deadline.
+
+### 🛡️ Admin Dashboard
+*   **Subject Management**: Create, edit, and delete subjects. Set seat limits and branch restrictions.
+*   **Student Management**: Bulk upload students via CSV or add them manually.
+*   **System Settings**:
+    *   Set a global **Selection Deadline**.
+    *   Toggle **Student Login** access (Enable/Disable portal).
+*   **Analytics & Reports**:
+    *   **Subject Popularity**: Bar charts showing total selections per subject.
+    *   **Branch Distribution**: Stacked charts showing which branches are choosing which subjects.
+    *   **CSV Export**: Download the final selection list for offline processing.
+
+## 🛠️ Tech Stack
+*   **Framework**: Next.js 14 (App Router)
+*   **Language**: TypeScript
+*   **Database**: SQLite (Dev) / PostgreSQL (Production)
+*   **ORM**: Prisma
+*   **Auth**: NextAuth.js (Credentials)
+*   **Styling**: Tailwind CSS
+*   **Charts**: Recharts
+
+## 📂 Project Structure
+*   `app/student`: Student-facing routes (Dashboard, Selection).
+*   `app/admin`: Admin-facing routes (Subjects, Students, Analytics, Settings).
+*   `app/api`: Backend API routes (Auth, Selection Logic, Data Export).
+*   `prisma/schema.prisma`: Database models (User, Subject, Selection, Preference).
+
+## ⚡ Getting Started
+
+### 1. Installation
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Database Setup
+```bash
+# Generate Prisma Client
+npx prisma generate
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# Push Schema to DB
+npx prisma db push
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Seed Admin User (admin / admin123)
+npx ts-node prisma/seed.ts
+```
 
-## Learn More
+### 3. Run Development Server
+```bash
+npm run dev
+```
+Visit `http://localhost:3000`
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🚀 Deployment (Vercel)
+1.  Push code to **GitHub**.
+2.  Import project in **Vercel**.
+3.  Add **Vercel Postgres** storage.
+4.  Update `prisma/schema.prisma` provider to `postgresql`.
+5.  Deploy!

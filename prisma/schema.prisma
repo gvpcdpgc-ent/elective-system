@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_PRISMA_URL") // Uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // Uses direct connection
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  role      String   // "ADMIN" or "STUDENT"
+  branch    String?
+  year      Int?     // 1, 2, 3, 4
+  selection Selection?
+  preferences Preference[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  limit       Int
+  branch      String?  // The branch that offers this subject
+  year        Int?     // 1, 2, 3, 4
+  selections  Selection[]
+  preferences Preference[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+}
+
+model Selection {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Preference {
+  id        String   @id @default(cuid())
+  userId    String
+  subjectId String
+  rank      Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, rank])
+  @@unique([userId, subjectId])
+}
+
+model Settings {
+  id                     String   @id @default(cuid())
+  deadline               DateTime?
+  isStudentLoginEnabled  Boolean  @default(true)
+  updatedAt              DateTime @updatedAt
+}
