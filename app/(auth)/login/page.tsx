@@ -49,8 +49,10 @@ export default function LoginPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                            placeholder="DDMMYYYY"
                             required
                         />
+                        <p className="text-xs text-gray-500 mt-1">please enter the password in DDMMYYYY format without any " - or / or . "</p>
                     </div>
                     <button
                         type="submit"
