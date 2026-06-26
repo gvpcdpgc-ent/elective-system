@@ -40,6 +40,14 @@ export default function AdminStudentsPage() {
     const [assignError, setAssignError] = useState<string | null>(null);
     const [assignSuccess, setAssignSuccess] = useState<string | null>(null);
 
+    // Reset Password Modal State
+    const [resetPasswordModalOpen, setResetPasswordModalOpen] = useState(false);
+    const [resetPasswordStudent, setResetPasswordStudent] = useState<any>(null);
+    const [newPasswordVal, setNewPasswordVal] = useState("");
+    const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+    const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+    const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
+
     // CSV Preview State
     const [csvPreview, setCsvPreview] = useState<{ rows: any[]; errors: string[] } | null>(null);
     const [csvSkipErrors, setCsvSkipErrors] = useState(false);
@@ -306,6 +314,40 @@ export default function AdminStudentsPage() {
         } catch (err) {
             setAssignError("An error occurred");
         } finally { setAssignLoading(false); }
+    };
+
+    // ---- Reset Password ----
+    const openResetPasswordModal = (student: any) => {
+        setResetPasswordStudent(student);
+        setNewPasswordVal("");
+        setResetPasswordError(null);
+        setResetPasswordSuccess(null);
+        setResetPasswordModalOpen(true);
+    };
+
+    const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!resetPasswordStudent || !newPasswordVal) return;
+        setResetPasswordLoading(true);
+        setResetPasswordError(null);
+        setResetPasswordSuccess(null);
+        try {
+            const res = await fetch("/api/admin/students", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: resetPasswordStudent.id, newPassword: newPasswordVal }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setResetPasswordSuccess(`✅ Password successfully reset for ${resetPasswordStudent.username}.`);
+            } else {
+                setResetPasswordError(data.error || "Password reset failed");
+            }
+        } catch (err) {
+            setResetPasswordError("An error occurred");
+        } finally {
+            setResetPasswordLoading(false);
+        }
     };
 
     // ---- Export CSV ----
@@ -594,6 +636,12 @@ export default function AdminStudentsPage() {
                                                 </button>
                                             )}
                                             <button
+                                                onClick={() => openResetPasswordModal(student)}
+                                                className="text-blue-600 hover:text-blue-900 text-xs border border-blue-200 bg-blue-50 px-2 py-1 rounded"
+                                            >
+                                                Reset Password
+                                            </button>
+                                            <button
                                                 onClick={() => openDeleteModal(student.id, "USER")}
                                                 className="text-red-600 hover:text-red-900 text-xs border border-red-200 bg-red-50 px-2 py-1 rounded"
                                             >
@@ -670,6 +718,59 @@ export default function AdminStudentsPage() {
                         {assignSuccess && (
                             <div className="flex justify-end">
                                 <button onClick={() => setAssignModalOpen(false)}
+                                    className="px-4 py-2 text-white bg-gray-700 rounded hover:bg-gray-800 text-sm">
+                                    Close
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Reset Password Modal */}
+            {resetPasswordModalOpen && resetPasswordStudent && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                    <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+                        <h3 className="text-xl font-bold text-gray-900 mb-1">Reset Password</h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                            Reset password for student <span className="font-semibold text-gray-800">{resetPasswordStudent.username}</span>.
+                        </p>
+
+                        {resetPasswordError && (
+                            <div className="p-3 bg-red-100 text-red-800 rounded mb-4 text-sm font-medium">{resetPasswordError}</div>
+                        )}
+                        {resetPasswordSuccess && (
+                            <div className="p-3 bg-green-100 text-green-800 rounded mb-4 text-sm font-medium">{resetPasswordSuccess}</div>
+                        )}
+
+                        {!resetPasswordSuccess && (
+                            <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                    <input
+                                        type="text"
+                                        value={newPasswordVal}
+                                        onChange={(e) => setNewPasswordVal(e.target.value)}
+                                        placeholder="e.g. DDMMYYYY"
+                                        className="border p-2 rounded w-full"
+                                        required
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 pt-2">
+                                    <button type="button" onClick={() => setResetPasswordModalOpen(false)} disabled={resetPasswordLoading}
+                                        className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 text-sm">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" disabled={resetPasswordLoading || !newPasswordVal}
+                                        className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 text-sm font-semibold">
+                                        {resetPasswordLoading ? "Resetting..." : "Reset Password"}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                        {resetPasswordSuccess && (
+                            <div className="flex justify-end">
+                                <button onClick={() => setResetPasswordModalOpen(false)}
                                     className="px-4 py-2 text-white bg-gray-700 rounded hover:bg-gray-800 text-sm">
                                     Close
                                 </button>
