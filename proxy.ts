@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { Redis } from "@upstash/redis";
+import { getToken } from "next-auth/jwt";
 
 const useRedis = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
 const redis = useRedis
@@ -50,6 +51,21 @@ export default async function proxy(request: NextRequest) {
     const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
     const path = request.nextUrl.pathname;
 
+    // Apply Page protection (RBAC)
+    if (path.startsWith("/admin") || path.startsWith("/student")) {
+        const token = await getToken({ req: request });
+        if (!token) {
+            return NextResponse.redirect(new URL("/login", request.url));
+        }
+
+        if (path.startsWith("/admin") && token.role !== "ADMIN") {
+            return NextResponse.redirect(new URL("/student/dashboard", request.url));
+        }
+        if (path.startsWith("/student") && token.role !== "STUDENT") {
+            return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+        }
+    }
+
     // Apply rate limiting to critical endpoints
     if (
         path.startsWith("/api/auth") ||
@@ -73,5 +89,5 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ["/api/:path*"]
+    matcher: ["/api/:path*", "/admin/:path*", "/student/:path*"]
 };

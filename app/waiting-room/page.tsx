@@ -12,32 +12,22 @@ export default function WaitingRoomPage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        // Verify authentication first
-        const checkAuth = async () => {
+        let isMounted = true;
+
+        const checkQueueAccess = async () => {
             try {
                 const res = await fetch("/api/queue/status", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" }
                 });
                 if (res.status === 401) {
-                    router.push("/login");
+                    if (isMounted) router.push("/login");
                     return;
                 }
-            } catch (e) {
-                console.error("Initial auth check failed:", e);
-            }
-        };
-        checkAuth();
+                const data = await res.json();
+                if (!isMounted) return;
 
-        // Establish EventSource connection for real-time queue updates
-        const eventSource = new EventSource("/api/queue/stream");
-
-        eventSource.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                
                 if (data.allowed) {
-                    eventSource.close();
                     router.push("/student/dashboard");
                     return;
                 }
@@ -46,17 +36,20 @@ export default function WaitingRoomPage() {
                 setLoading(false);
                 setError(null);
             } catch (err) {
-                console.error("Failed to parse queue stream event:", err);
+                console.error("Queue status check error:", err);
+                if (isMounted) setError("Connection issues. Retrying...");
             }
         };
 
-        eventSource.onerror = (err) => {
-            console.error("EventSource connection error:", err);
-            setError("Connection lost. Reconnecting...");
-        };
+        // Run check immediately on mount
+        checkQueueAccess();
+
+        // Poll status every 5 seconds
+        const interval = setInterval(checkQueueAccess, 5000);
 
         return () => {
-            eventSource.close();
+            isMounted = false;
+            clearInterval(interval);
         };
     }, [router]);
 
