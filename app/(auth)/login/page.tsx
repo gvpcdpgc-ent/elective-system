@@ -9,26 +9,58 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const res = await signIn("credentials", {
-            username,
-            password,
-            redirect: false,
-        });
+        setLoading(true);
+        setError("");
 
-        if (res?.error) {
-            setError("Invalid credentials");
-        } else {
-            router.push("/");
-            router.refresh();
+        try {
+            const res = await signIn("credentials", {
+                username,
+                password,
+                redirect: false,
+            });
+
+            if (res?.error) {
+                setError(res.error === "Student login is currently disabled" ? res.error : "Invalid credentials");
+                setLoading(false);
+            } else {
+                router.push("/");
+                router.refresh();
+            }
+        } catch (err) {
+            setError("Something went wrong. Please try again.");
+            setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4 relative">
+            {/* Loading Overlay */}
+            {loading && (
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex flex-col items-center justify-center z-50 transition-opacity duration-300">
+                    <div className="bg-white/95 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-xs w-full mx-4 border border-gray-100 transform scale-100 transition-transform">
+                        <div className="relative mb-6 flex items-center justify-center w-24 h-24">
+                            {/* Inner Logo */}
+                            <img
+                                src="https://gvpcdpgc.edu.in/gvplogo.jpg"
+                                alt="GVP Logo"
+                                className="w-16 h-16 object-contain animate-pulse"
+                            />
+                            {/* Outer Spinning Border */}
+                            <div className="absolute inset-0 rounded-full border-4 border-t-blue-600 border-r-blue-600 border-b-transparent border-l-transparent animate-spin"></div>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900">Connecting...</h3>
+                        <p className="text-xs text-gray-500 mt-2 text-center leading-relaxed">
+                            Securing your connection and checking waiting room queue. Please wait...
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* College Header */}
             <div className="text-center mb-8 max-w-5xl flex flex-col items-center">
                 <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-4">
@@ -58,12 +90,12 @@ export default function LoginPage() {
 
                 <h2 className="text-2xl md:text-3xl font-bold text-blue-800 mt-4 uppercase border-b-4 border-blue-800 inline-block pb-1">
                      OPEN ELECTIVE SELECTION
-                </h2>
+                 </h2>
             </div>
 
             <div className="bg-white p-8 rounded shadow-md w-full max-w-md">
                 <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">Login</h1>
-                {error && <p className="text-red-500 mb-4">{error}</p>}
+                {error && <p className="text-red-500 mb-4 text-center text-sm font-semibold">{error}</p>}
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Username</label>
@@ -73,6 +105,7 @@ export default function LoginPage() {
                             onChange={(e) => setUsername(e.target.value)}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                             required
+                            disabled={loading}
                         />
                     </div>
                     <div>
@@ -85,11 +118,13 @@ export default function LoginPage() {
                                 className="block w-full border border-gray-300 rounded-md shadow-sm p-2 pr-10"
                                 placeholder="DDMMYYYY"
                                 required
+                                disabled={loading}
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
                                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                                disabled={loading}
                             >
                                 {showPassword ? (
                                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,9 +142,10 @@ export default function LoginPage() {
                     </div>
                     <button
                         type="submit"
-                        className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+                        disabled={loading}
+                        className={`w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
-                        Sign In
+                        {loading ? "Signing In..." : "Sign In"}
                     </button>
                 </form>
 

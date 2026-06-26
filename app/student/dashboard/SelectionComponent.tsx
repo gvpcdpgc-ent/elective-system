@@ -224,7 +224,28 @@ export default function SelectionComponent({
 
     // ── Window ACTIVE — normal selection UI ──────────────────────────────
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 relative">
+            {loading !== null && (
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex flex-col items-center justify-center z-50 transition-opacity duration-300">
+                    <div className="bg-white/95 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-xs w-full mx-4 border border-gray-100">
+                        <div className="relative mb-6 flex items-center justify-center w-24 h-24">
+                            {/* Inner Logo */}
+                            <img
+                                src="https://gvpcdpgc.edu.in/gvplogo.jpg"
+                                alt="GVP Logo"
+                                className="w-16 h-16 object-contain animate-pulse"
+                            />
+                            {/* Outer Spinning Border */}
+                            <div className="absolute inset-0 rounded-full border-4 border-t-indigo-600 border-r-indigo-600 border-b-transparent border-l-transparent animate-spin"></div>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900">Reserving Seat...</h3>
+                        <p className="text-xs text-gray-500 mt-2 text-center leading-relaxed">
+                            Processing your selection and locking your seat. Please do not refresh or close this page.
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {endTime && (
                 <div className="text-sm font-medium text-orange-600 bg-orange-50 border border-orange-100 px-4 py-2 rounded-lg inline-block">
                     Selection closes on: {new Date(endTime).toLocaleString()}
