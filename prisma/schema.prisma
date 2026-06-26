@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id        String    @id @default(cuid())
+  name      String    @unique // e.g. "COMPUTER SCIENCE AND ENGINEERING"
+  code      String    @unique // e.g. "CSE"
+  users     User[]
+  subjects  Subject[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model ElectiveCategory {
+  id              String           @id @default(cuid())
+  name            String           // e.g. "OPEN ELECTIVE - I"
+  year            Int              // e.g. 3 (for 3rd Year)
+  semester        Int              // e.g. 1 (for 1st Semester)
+  isActive        Boolean          @default(true)
+  subjects        Subject[]
+  selections      Selection[]
+  preferences     Preference[]
+  selectionWindow SelectionWindow?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model User {
+  id           String       @id @default(cuid())
+  username     String       @unique
+  password     String
+  role         String       // "ADMIN" or "STUDENT"
+  departmentId String?
+  department   Department?  @relation(fields: [departmentId], references: [id])
+  year         Int?         // 1, 2, 3, 4
+  selections   Selection[]
+  preferences  Preference[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Subject {
+  id           String       @id @default(cuid())
+  name         String
+  code         String       @unique
+  description  String?
+  limit        Int
+  departmentId String
+  department   Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  year         Int?         // 1, 2, 3, 4
+  categoryId   String
+  category     ElectiveCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  selections   Selection[]
+  preferences  Preference[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Selection {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId   String
+  subject     Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    ElectiveCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+
+  @@unique([userId, categoryId])
+}
+
+model Preference {
+  id          String       @id @default(cuid())
+  userId      String
+  subjectId   String
+  categoryId  String
+  rank        Int
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject     Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  category    ElectiveCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+
+  @@unique([userId, categoryId, rank])
+  @@unique([userId, categoryId, subjectId])
+}
+
+model Settings {
+  id                     String   @id @default(cuid())
+  isStudentLoginEnabled  Boolean  @default(true)
+  isVirtualQueueEnabled  Boolean  @default(false)
+  maxConcurrency         Int      @default(50)
+  updatedAt              DateTime @updatedAt
+}
+
+model SelectionWindow {
+  id          String           @id @default(cuid())
+  categoryId  String           @unique
+  category    ElectiveCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  startTime   DateTime
+  endTime     DateTime
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model ActiveUser {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  lastSeen  DateTime @default(now())
+}
+
+model WaitingQueue {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  joinedAt  DateTime @default(now())
+}
+
+model AuthLog {
+  id        String   @id @default(cuid())
+  username  String
+  event     String   // "SUCCESS" | "WRONG_PASSWORD" | "USER_NOT_FOUND" | "LOGIN_DISABLED"
+  role      String?  // "STUDENT" | "ADMIN" | null (null when user not found)
+  createdAt DateTime @default(now())
+}
