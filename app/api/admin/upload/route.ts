@@ -13,45 +13,62 @@ export async function POST(req: Request) {
 
     try {
         const body = await req.json();
-        const { students } = body; // Expecting array of { username, password, branch, year } (branch acts as department code)
+        const { students } = body;
 
-        if (!Array.isArray(students)) {
+        if (!Array.isArray(students) || students.length === 0) {
             return NextResponse.json({ error: "Invalid data format" }, { status: 400 });
         }
 
-        // Fetch all departments to map code to id
+        if (students.length > 1000) {
+            return NextResponse.json({ error: "Maximum 1000 students per upload." }, { status: 400 });
+        }
+
+        // Fetch all departments once
         const departments = await prisma.department.findMany();
         const deptMap = new Map(departments.map(d => [d.code.toUpperCase(), d.id]));
 
-        const hashedStudents = [];
+        // Validate all rows first (fail fast before hashing)
         for (const s of students) {
             const deptCode = (s.branch || "").trim().toUpperCase();
-            const departmentId = deptMap.get(deptCode);
-
-            if (!departmentId) {
-                return NextResponse.json({ error: `Department code "${deptCode}" not found in database.` }, { status: 400 });
+            if (!deptMap.has(deptCode)) {
+                return NextResponse.json(
+                    { error: `Department code "${deptCode}" not found. Add it in Admin → Departments first.` },
+                    { status: 400 }
+                );
             }
-
-            hashedStudents.push({
-                username: s.username,
-                password: await bcrypt.hash(s.password, 10),
-                departmentId,
-                year: s.year ? parseInt(s.year) : null,
-                role: "STUDENT",
-            });
         }
 
-        await prisma.$transaction(
-            hashedStudents.map((student) =>
-                prisma.user.create({
-                    data: student,
-                })
-            )
+        // Hash all passwords in parallel using bcrypt cost factor 8
+        // (cost 8 is still secure but ~4x faster than cost 10 — ideal for bulk ops)
+        const hashedStudents = await Promise.all(
+            students.map(async (s) => {
+                const deptCode = (s.branch || "").trim().toUpperCase();
+                return {
+                    username: (s.username || "").trim(),
+                    password: await bcrypt.hash(String(s.password), 8),
+                    departmentId: deptMap.get(deptCode)!,
+                    year: s.year ? parseInt(s.year) : null,
+                    role: "STUDENT" as const,
+                };
+            })
         );
 
-        return NextResponse.json({ message: "Students uploaded successfully", count: students.length });
+        // Single bulk insert — vastly faster than N individual creates
+        const result = await prisma.user.createMany({
+            data: hashedStudents,
+            skipDuplicates: true, // skip existing usernames instead of crashing
+        });
+
+        return NextResponse.json({
+            message: "Students uploaded successfully",
+            count: result.count,
+            skipped: students.length - result.count,
+        });
     } catch (error: any) {
-        console.error(error);
-        return NextResponse.json({ error: error.message || "Failed to upload students. Usernames must be unique." }, { status: 500 });
+        console.error("Upload error:", error);
+        return NextResponse.json(
+            { error: error.message || "Upload failed. Check usernames are unique." },
+            { status: 500 }
+        );
     }
 }
