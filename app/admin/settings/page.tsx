@@ -142,7 +142,11 @@ export default function AdminSettingsPage() {
             const res = await fetch("/api/admin/windows", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ categoryId: selectedCategoryId, startTime, endTime }),
+                body: JSON.stringify({ 
+                    categoryId: selectedCategoryId, 
+                    startTime: new Date(startTime).toISOString(), 
+                    endTime: new Date(endTime).toISOString() 
+                }),
             });
 
             const data = await res.json();
@@ -165,8 +169,15 @@ export default function AdminSettingsPage() {
     const openEditModal = (win: any) => {
         setEditWindowId(win.id);
         setEditCategoryName(win.category.name);
-        setEditStartTime(new Date(win.startTime).toISOString().slice(0, 16));
-        setEditEndTime(new Date(win.endTime).toISOString().slice(0, 16));
+
+        const toLocalInputFormat = (dateStr: string) => {
+            const date = new Date(dateStr);
+            const offset = date.getTimezoneOffset() * 60000;
+            return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+        };
+
+        setEditStartTime(toLocalInputFormat(win.startTime));
+        setEditEndTime(toLocalInputFormat(win.endTime));
         setEditError(null);
         setIsEditModalOpen(true);
     };
@@ -181,7 +192,11 @@ export default function AdminSettingsPage() {
             const res = await fetch("/api/admin/windows", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: editWindowId, startTime: editStartTime, endTime: editEndTime }),
+                body: JSON.stringify({ 
+                    id: editWindowId, 
+                    startTime: new Date(editStartTime).toISOString(), 
+                    endTime: new Date(editEndTime).toISOString() 
+                }),
             });
 
             const data = await res.json();
