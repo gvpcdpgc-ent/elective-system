@@ -68,10 +68,20 @@ export async function updateMaxConcurrency(limit: number): Promise<void> {
     }
 }
 
+let cachedQueueEnabled: boolean | null = null;
+let lastCacheTime = 0;
+const CACHE_TTL_MS = 10000; // 10 seconds in-memory cache
+
 export async function isVirtualQueueEnabled(): Promise<boolean> {
+    const now = Date.now();
+    if (cachedQueueEnabled !== null && (now - lastCacheTime < CACHE_TTL_MS)) {
+        return cachedQueueEnabled;
+    }
     try {
         const settings = await prisma.settings.findFirst();
-        return settings?.isVirtualQueueEnabled ?? false;
+        cachedQueueEnabled = settings?.isVirtualQueueEnabled ?? false;
+        lastCacheTime = now;
+        return cachedQueueEnabled;
     } catch (err) {
         console.error("Failed to query settings for virtual queue status:", err);
         return false;
@@ -109,14 +119,14 @@ export async function getQueueStatus(userId: string): Promise<{ position: number
 }
 
 export async function checkAccess(userId: string): Promise<{ allowed: boolean; position: number | null }> {
-    // If student has already completed selection, let them in immediately
-    // without consuming any active slot in the queue!
-    if (await hasCompletedSelection(userId)) {
+    const enabled = await isVirtualQueueEnabled();
+    if (!enabled) {
         return { allowed: true, position: null };
     }
 
-    const enabled = await isVirtualQueueEnabled();
-    if (!enabled) {
+    // If student has already completed selection, let them in immediately
+    // without consuming any active slot in the queue!
+    if (await hasCompletedSelection(userId)) {
         return { allowed: true, position: null };
     }
 
