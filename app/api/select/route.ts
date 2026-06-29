@@ -25,102 +25,97 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Subject ID and Category ID required" }, { status: 400 });
         }
 
-        // Transaction to ensure atomicity and handle concurrency safely
-        const result = await prisma.$transaction(async (tx) => {
-            
-            // 1. Pessimistic Row Locking (FOR UPDATE)
-            // This locks the subject row in PostgreSQL. Any other concurrent transaction
-            // trying to read/write this subject will wait, ensuring no double-bookings occur.
-            await tx.$executeRaw`SELECT * FROM "Subject" WHERE id = ${subjectId} FOR UPDATE`;
+        // 1. Fetch user (not in transaction)
+        const user = await prisma.user.findUnique({ 
+            where: { id: session.user.id },
+            include: { department: true }
+        });
 
-            // 2. Check if user already has a selection for this category
-            const existingSelection = await tx.selection.findUnique({
-                where: {
-                    userId_categoryId: {
-                        userId: session.user.id,
-                        categoryId: categoryId
-                    }
+        // 2. Check if user already has a selection for this category
+        const existingSelection = await prisma.selection.findUnique({
+            where: {
+                userId_categoryId: {
+                    userId: session.user.id,
+                    categoryId: categoryId
+                }
+            },
+        });
+
+        if (existingSelection) {
+            return NextResponse.json({ error: "You have already selected a subject for this category" }, { status: 400 });
+        }
+
+        // 3. Check selection window bounds
+        const window = await prisma.selectionWindow.findUnique({
+            where: { categoryId }
+        });
+
+        if (!window) {
+            return NextResponse.json({ error: "No selection window has been scheduled for this category" }, { status: 400 });
+        }
+
+        const now = new Date();
+        if (now < new Date(window.startTime)) {
+            return NextResponse.json({ error: "Selection window has not opened yet" }, { status: 400 });
+        }
+
+        if (now > new Date(window.endTime)) {
+            return NextResponse.json({ error: "Selection window has closed" }, { status: 400 });
+        }
+
+        // 4. Fetch subject and its current selection count
+        const subject = await prisma.subject.findUnique({
+            where: { id: subjectId },
+            include: {
+                category: true,
+                _count: {
+                    select: { selections: true },
                 },
-            });
+            },
+        });
 
-            if (existingSelection) {
-                throw new Error("You have already selected a subject for this category");
-            }
+        if (!subject) {
+            return NextResponse.json({ error: "Subject not found" }, { status: 400 });
+        }
 
-            // 3. Check selection window bounds
-            const window = await tx.selectionWindow.findUnique({
-                where: { categoryId }
-            });
+        if (subject.categoryId !== categoryId) {
+            return NextResponse.json({ error: "Subject does not belong to this category" }, { status: 400 });
+        }
 
-            if (!window) {
-                throw new Error("No selection window has been scheduled for this category");
-            }
+        // 5. Enforce Open Elective Rule (Cannot select own department)
+        if (user?.departmentId && subject.departmentId && user.departmentId === subject.departmentId) {
+            const deptName = user.department?.name || "your own department";
+            return NextResponse.json({ error: `You cannot select a subject from ${deptName}` }, { status: 400 });
+        }
 
-            const now = new Date();
-            if (now < new Date(window.startTime)) {
-                throw new Error("Selection window has not opened yet");
-            }
-
-            if (now > new Date(window.endTime)) {
-                throw new Error("Selection window has closed");
-            }
-
-            // 4. Fetch subject and its current selection count
-            const subject = await tx.subject.findUnique({
+        // 5.5 Enforce CSE / CSM Cross-Branch restriction if enabled in settings
+        const settings = await prisma.settings.findFirst();
+        if (settings?.isCseCsmRestrictionEnabled) {
+            const userDeptCode = user?.department?.code;
+            const subjectWithDept = await prisma.subject.findUnique({
                 where: { id: subjectId },
-                include: {
-                    category: true,
-                    _count: {
-                        select: { selections: true },
-                    },
-                },
-            });
-
-            if (!subject) {
-                throw new Error("Subject not found");
-            }
-
-            if (subject.categoryId !== categoryId) {
-                throw new Error("Subject does not belong to this category");
-            }
-
-            // 5. Enforce Open Elective Rule (Cannot select own department)
-            const user = await tx.user.findUnique({ 
-                where: { id: session.user.id },
                 include: { department: true }
             });
-            if (user?.departmentId && subject.departmentId && user.departmentId === subject.departmentId) {
-                const deptName = user.department?.name || "your own department";
-                throw new Error(`You cannot select a subject from ${deptName}`);
-            }
+            const subjectDeptCode = subjectWithDept?.department?.code;
 
-            // 5.5 Enforce CSE / CSM Cross-Branch restriction if enabled in settings
-            const settings = await tx.settings.findFirst();
-            if (settings?.isCseCsmRestrictionEnabled) {
-                const userDeptCode = user?.department?.code;
-                const subjectWithDept = await tx.subject.findUnique({
-                    where: { id: subjectId },
-                    include: { department: true }
-                });
-                const subjectDeptCode = subjectWithDept?.department?.code;
+            if (userDeptCode && subjectDeptCode) {
+                const isUserCseOrCsm = userDeptCode === "CSE" || userDeptCode === "CSM";
+                const isSubjectCseOrCsm = subjectDeptCode === "CSE" || subjectDeptCode === "CSM";
 
-                if (userDeptCode && subjectDeptCode) {
-                    const isUserCseOrCsm = userDeptCode === "CSE" || userDeptCode === "CSM";
-                    const isSubjectCseOrCsm = subjectDeptCode === "CSE" || subjectDeptCode === "CSM";
-
-                    if (isUserCseOrCsm && isSubjectCseOrCsm && userDeptCode !== subjectDeptCode) {
-                        throw new Error("CSE and CSM students are restricted from cross-selecting these subjects.");
-                    }
+                if (isUserCseOrCsm && isSubjectCseOrCsm && userDeptCode !== subjectDeptCode) {
+                    return NextResponse.json({ error: "CSE and CSM students are restricted from cross-selecting these subjects." }, { status: 400 });
                 }
             }
+        }
 
-            // 6. Check seat limit
-            if (subject._count.selections >= subject.limit) {
-                throw new Error("Subject is full");
-            }
+        // 6. Check seat limit
+        if (subject._count.selections >= subject.limit) {
+            return NextResponse.json({ error: "Subject is full" }, { status: 400 });
+        }
 
-            // 7. Create selection
-            const selection = await tx.selection.create({
+        // 7. Create selection
+        try {
+            const selection = await prisma.selection.create({
                 data: {
                     userId: session.user.id,
                     subjectId: subjectId,
@@ -128,15 +123,19 @@ export async function POST(req: Request) {
                 },
             });
 
-            return selection;
-        });
+            // Release the user's active slot immediately since they have completed selection
+            await leaveQueue(session.user.id);
 
-        // Release the user's active slot immediately since they have completed selection
-        await leaveQueue(session.user.id);
-
-        return NextResponse.json(result);
+            return NextResponse.json(selection);
+        } catch (dbErr: any) {
+            // Handle unique constraint if submitted concurrently
+            if (dbErr.code === 'P2002') {
+                return NextResponse.json({ error: "You have already selected a subject for this category" }, { status: 400 });
+            }
+            throw dbErr;
+        }
     } catch (error: any) {
-        console.error("Selection transaction error:", error);
+        console.error("Selection API error:", error);
         return NextResponse.json({ error: error.message || "Selection failed" }, { status: 400 });
     }
 }
