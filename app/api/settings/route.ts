@@ -11,7 +11,7 @@ export async function GET() {
     }
 
     const settings = await prisma.settings.findFirst();
-    return NextResponse.json(settings || { isStudentLoginEnabled: true, isVirtualQueueEnabled: false, maxConcurrency: 50 });
+    return NextResponse.json(settings || { isStudentLoginEnabled: true, isVirtualQueueEnabled: false, maxConcurrency: 50, isCseCsmRestrictionEnabled: false });
 }
 
 export async function POST(req: Request) {
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         console.log("Settings POST Body:", body);
-        const { isStudentLoginEnabled, isVirtualQueueEnabled, maxConcurrency } = body;
+        const { isStudentLoginEnabled, isVirtualQueueEnabled, maxConcurrency, isCseCsmRestrictionEnabled } = body;
         const parsedMaxConcurrency = typeof maxConcurrency === 'number' 
             ? maxConcurrency 
             : parseInt(maxConcurrency || "50", 10);
@@ -40,11 +40,13 @@ export async function POST(req: Request) {
                 isStudentLoginEnabled,
                 isVirtualQueueEnabled: isVirtualQueueEnabled ?? false,
                 maxConcurrency: parsedMaxConcurrency ?? 50,
+                isCseCsmRestrictionEnabled: isCseCsmRestrictionEnabled ?? false,
             },
             create: {
                 isStudentLoginEnabled: isStudentLoginEnabled ?? true,
                 isVirtualQueueEnabled: isVirtualQueueEnabled ?? false,
                 maxConcurrency: parsedMaxConcurrency ?? 50,
+                isCseCsmRestrictionEnabled: isCseCsmRestrictionEnabled ?? false,
             },
         });
 

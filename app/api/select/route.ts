@@ -94,6 +94,26 @@ export async function POST(req: Request) {
                 throw new Error(`You cannot select a subject from ${deptName}`);
             }
 
+            // 5.5 Enforce CSE / CSM Cross-Branch restriction if enabled in settings
+            const settings = await tx.settings.findFirst();
+            if (settings?.isCseCsmRestrictionEnabled) {
+                const userDeptCode = user?.department?.code;
+                const subjectWithDept = await tx.subject.findUnique({
+                    where: { id: subjectId },
+                    include: { department: true }
+                });
+                const subjectDeptCode = subjectWithDept?.department?.code;
+
+                if (userDeptCode && subjectDeptCode) {
+                    const isUserCseOrCsm = userDeptCode === "CSE" || userDeptCode === "CSM";
+                    const isSubjectCseOrCsm = subjectDeptCode === "CSE" || subjectDeptCode === "CSM";
+
+                    if (isUserCseOrCsm && isSubjectCseOrCsm && userDeptCode !== subjectDeptCode) {
+                        throw new Error("CSE and CSM students are restricted from cross-selecting these subjects.");
+                    }
+                }
+            }
+
             // 6. Check seat limit
             if (subject._count.selections >= subject.limit) {
                 throw new Error("Subject is full");

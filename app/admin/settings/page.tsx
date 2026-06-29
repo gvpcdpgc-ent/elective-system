@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 
 export default function AdminSettingsPage() {
-    const [settings, setSettings] = useState({ isStudentLoginEnabled: true, isVirtualQueueEnabled: false, maxConcurrency: 50 });
+    const [settings, setSettings] = useState({ isStudentLoginEnabled: true, isVirtualQueueEnabled: false, maxConcurrency: 50, isCseCsmRestrictionEnabled: false });
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
 
@@ -51,6 +51,7 @@ export default function AdminSettingsPage() {
                         isStudentLoginEnabled: data.isStudentLoginEnabled ?? true,
                         isVirtualQueueEnabled: data.isVirtualQueueEnabled ?? false,
                         maxConcurrency: data.maxConcurrency ?? 50,
+                        isCseCsmRestrictionEnabled: data.isCseCsmRestrictionEnabled ?? false,
                     });
                 }
             })
@@ -277,6 +278,21 @@ export default function AdminSettingsPage() {
                     </label>
                     <p className="text-sm text-gray-500 mt-1 ml-8">
                         If checked, students will enter a virtual queue under high traffic load to protect the database.
+                    </p>
+                </div>
+
+                <div className="mb-6">
+                    <label className="flex items-center space-x-3">
+                        <input
+                            type="checkbox"
+                            checked={settings.isCseCsmRestrictionEnabled}
+                            onChange={(e) => setSettings({ ...settings, isCseCsmRestrictionEnabled: e.target.checked })}
+                            className="h-5 w-5 text-blue-600 rounded"
+                        />
+                        <span className="text-gray-700 font-semibold">Enforce CSE / CSM Cross-Branch Restriction</span>
+                    </label>
+                    <p className="text-sm text-gray-500 mt-1 ml-8">
+                        If checked, CSE students will be restricted from selecting CSM subjects, and CSM students from selecting CSE subjects.
                     </p>
                 </div>
 

@@ -93,11 +93,12 @@ model Preference {
 }
 
 model Settings {
-  id                     String   @id @default(cuid())
-  isStudentLoginEnabled  Boolean  @default(true)
-  isVirtualQueueEnabled  Boolean  @default(false)
-  maxConcurrency         Int      @default(50)
-  updatedAt              DateTime @updatedAt
+  id                         String   @id @default(cuid())
+  isStudentLoginEnabled      Boolean  @default(true)
+  isVirtualQueueEnabled      Boolean  @default(false)
+  maxConcurrency             Int      @default(50)
+  isCseCsmRestrictionEnabled Boolean  @default(false)
+  updatedAt                  DateTime @updatedAt
 }
 
 model SelectionWindow {

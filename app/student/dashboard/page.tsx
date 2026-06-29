@@ -8,6 +8,9 @@ export default async function StudentDashboard() {
 
     if (!session) return null;
 
+    const settings = await prisma.settings.findFirst();
+    const isCseCsmRestrictionEnabled = settings?.isCseCsmRestrictionEnabled || false;
+
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },
         include: {
@@ -109,6 +112,7 @@ export default async function StudentDashboard() {
                                 startTime={cat.startTime}
                                 endTime={cat.endTime}
                                 windowState={cat.windowState}
+                                isCseCsmRestrictionEnabled={isCseCsmRestrictionEnabled}
                             />
                         )}
                     </div>

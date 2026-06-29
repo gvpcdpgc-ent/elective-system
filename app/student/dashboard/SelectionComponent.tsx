@@ -21,6 +21,7 @@ export default function SelectionComponent({
     startTime,
     endTime,
     windowState,
+    isCseCsmRestrictionEnabled = false,
 }: {
     subjects: Subject[];
     categoryId: string;
@@ -29,6 +30,7 @@ export default function SelectionComponent({
     startTime?: Date | string | null;
     endTime?: Date | string | null;
     windowState?: "NONE" | "SCHEDULED" | "ACTIVE" | "CLOSED";
+    isCseCsmRestrictionEnabled?: boolean;
 }) {
     const [loading, setLoading] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState<string | null>(null);
@@ -167,10 +169,12 @@ export default function SelectionComponent({
                         {subjects.map((subject) => {
                             const isOwnBranch = userBranch && subject.branch && userBranch === subject.branch;
                             const isFull = subject.currentCount >= subject.limit;
+                            const isCseCsmRestricted = isCseCsmRestrictionEnabled && userBranch && subject.branch &&
+                                ((userBranch === "CSE" && subject.branch === "CSM") || (userBranch === "CSM" && subject.branch === "CSE"));
                             return (
                                 <div
                                     key={subject.id}
-                                    className={`bg-white rounded-lg border border-gray-200 p-5 flex flex-col opacity-85 ${isOwnBranch ? "opacity-50" : ""}`}
+                                    className={`bg-white rounded-lg border border-gray-200 p-5 flex flex-col opacity-85 ${(isOwnBranch || isCseCsmRestricted) ? "opacity-50" : ""}`}
                                 >
                                     <div className="flex justify-between items-start mb-3">
                                         <div>
@@ -191,6 +195,9 @@ export default function SelectionComponent({
                                     )}
                                     {isOwnBranch && (
                                         <p className="text-xs text-red-500 mb-2 font-medium">Not available for {userBranch} students</p>
+                                    )}
+                                    {isCseCsmRestricted && (
+                                        <p className="text-xs text-red-500 mb-2 font-medium">Restricted (CSE/CSM Cross-Branch rule active)</p>
                                     )}
                                     <div className="mt-auto bg-gray-100 text-gray-500 text-center py-2 px-4 rounded text-sm font-medium cursor-not-allowed">
                                         🔒 Opens when window starts
@@ -255,10 +262,12 @@ export default function SelectionComponent({
                 {subjects.map((subject) => {
                     const isFull = subject.currentCount >= subject.limit;
                     const isOwnBranch = userBranch && subject.branch && userBranch === subject.branch;
-                    const isDisabled = isFull || isOwnBranch || isDeadlinePassed || loading !== null;
+                    const isCseCsmRestricted = isCseCsmRestrictionEnabled && userBranch && subject.branch &&
+                        ((userBranch === "CSE" && subject.branch === "CSM") || (userBranch === "CSM" && subject.branch === "CSE"));
+                    const isDisabled = isFull || isOwnBranch || isCseCsmRestricted || isDeadlinePassed || loading !== null;
 
                     return (
-                        <div key={subject.id} className={`bg-white rounded-lg shadow-md p-6 flex flex-col ${isOwnBranch ? "opacity-75" : ""}`}>
+                        <div key={subject.id} className={`bg-white rounded-lg shadow-md p-6 flex flex-col ${(isOwnBranch || isCseCsmRestricted) ? "opacity-75" : ""}`}>
                             <div className="flex justify-between items-start mb-4">
                                 <div>
                                     <h3 className="text-xl font-bold text-gray-900">{subject.name}</h3>
@@ -277,6 +286,9 @@ export default function SelectionComponent({
                             {isOwnBranch && (
                                 <p className="text-xs text-red-500 mb-2 font-medium">Not available for {userBranch} students</p>
                             )}
+                            {isCseCsmRestricted && (
+                                <p className="text-xs text-red-500 mb-2 font-medium">Restricted (CSE/CSM Cross-Branch rule active)</p>
+                            )}
 
                             <button
                                 onClick={() => handleSelectClick(subject)}
@@ -286,7 +298,7 @@ export default function SelectionComponent({
                                     : "bg-blue-600 text-white hover:bg-blue-700"
                                     }`}
                             >
-                                {loading === subject.id ? "Selecting..." : isFull ? "Full" : isOwnBranch ? "Restricted" : "Select"}
+                                {loading === subject.id ? "Selecting..." : isFull ? "Full" : isOwnBranch ? "Restricted" : isCseCsmRestricted ? "Restricted" : "Select"}
                             </button>
                         </div>
                     );
