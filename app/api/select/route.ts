@@ -11,6 +11,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Enforce Student Login/Selection Enabled Check
+    const settings = await prisma.settings.findFirst();
+    if (settings && !settings.isStudentLoginEnabled) {
+        return NextResponse.json({ error: "Student selections are currently paused by the administrator." }, { status: 403 });
+    }
+
     // Enforce Virtual Waiting Room Concurrency Check
     const access = await checkAccess(session.user.id);
     if (!access.allowed) {
